@@ -3,14 +3,6 @@
 import Link from "next/link"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import {
-  Bell,
-  Building2,
-  FolderOpen,
-  LayoutGrid,
-  Package,
-  Sparkles,
-} from "lucide-react"
 
 import { ROUTES } from "@/constants/routes"
 import type { DashboardData } from "@/lib/dashboard"
@@ -34,19 +26,7 @@ export function DashboardView({
   user: AppUser
   data: DashboardData
 }) {
-  const primaryBrandId =
-    user.brand_id ?? data.recentBrands[0]?.id ?? null
   const superUser = user.role === "super_admin"
-
-  const productsHref = primaryBrandId
-    ? ROUTES.brandProducts(primaryBrandId)
-    : ROUTES.brands
-  const notifHref = primaryBrandId
-    ? ROUTES.brandNotifications(primaryBrandId)
-    : ROUTES.brands
-  const assetsHref = primaryBrandId
-    ? ROUTES.brandAssets(primaryBrandId)
-    : ROUTES.brands
 
   return (
     <div className="flex flex-col gap-6">
@@ -192,77 +172,6 @@ export function DashboardView({
         </Card>
       </div>
 
-      <div>
-        <h2 className="mb-3 font-mono text-xs font-medium tracking-[0.12em] text-zinc-400 uppercase">
-          Thao tác nhanh
-        </h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:max-w-xl">
-          <Link
-            href={ROUTES.brands}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "h-auto min-h-11 flex-col gap-1 border-zinc-700 py-3"
-            )}
-          >
-            <Building2 className="size-5 text-[#E8FF47]" />
-            <span>Thương hiệu</span>
-          </Link>
-          <Link
-            href={productsHref}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "h-auto min-h-11 flex-col gap-1 border-zinc-700 py-3"
-            )}
-          >
-            <Package className="size-5 text-[#E8FF47]" />
-            <span>Sản phẩm</span>
-          </Link>
-          <Link
-            href={notifHref}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "h-auto min-h-11 flex-col gap-1 border-zinc-700 py-3"
-            )}
-          >
-            <Bell className="size-5 text-[#E8FF47]" />
-            <span>Thông báo</span>
-          </Link>
-          <Link
-            href={assetsHref}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "h-auto min-h-11 flex-col gap-1 border-zinc-700 py-3"
-            )}
-          >
-            <FolderOpen className="size-5 text-[#E8FF47]" />
-            <span>Thư viện media</span>
-          </Link>
-        </div>
-        {superUser ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={ROUTES.users}
-              className={cn(
-                buttonVariants({ variant: "secondary", size: "sm" }),
-                "inline-flex gap-1.5"
-              )}
-            >
-              <LayoutGrid className="size-4" />
-              Người dùng
-            </Link>
-            <Link
-              href={ROUTES.settings}
-              className={cn(
-                buttonVariants({ variant: "secondary", size: "sm" }),
-                "inline-flex gap-1.5"
-              )}
-            >
-              <Sparkles className="size-4" />
-              Cài đặt hệ thống
-            </Link>
-          </div>
-        ) : null}
-      </div>
     </div>
   )
 }

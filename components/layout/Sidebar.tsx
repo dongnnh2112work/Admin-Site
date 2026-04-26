@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { Bell, FolderOpen, Package } from "lucide-react"
 
 import { ROUTES } from "@/constants/routes"
 import { filterNavByRole, SIDEBAR_NAV } from "@/constants/navigation"
@@ -13,9 +14,49 @@ function navItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+function brandIdFromPath(pathname: string): string | null {
+  const m = pathname.match(/^\/brands\/([^/]+)/)
+  return m?.[1] ?? null
+}
+
 export function Sidebar({ user }: { user: AppUser }) {
   const pathname = usePathname()
-  const items = filterNavByRole(SIDEBAR_NAV, user.role)
+  const baseItems = filterNavByRole(SIDEBAR_NAV, user.role)
+  const currentBrandId = brandIdFromPath(pathname) ?? user.brand_id
+  const productsHref = currentBrandId
+    ? ROUTES.brandProducts(currentBrandId)
+    : ROUTES.brands
+  const notificationsHref = currentBrandId
+    ? ROUTES.brandNotifications(currentBrandId)
+    : ROUTES.brands
+  const assetsHref = currentBrandId
+    ? ROUTES.brandAssets(currentBrandId)
+    : ROUTES.brands
+
+  const items = [...baseItems]
+  items.splice(2, 0,
+    {
+      href: productsHref,
+      label: "Sản phẩm",
+      description: "Quản lý sản phẩm theo thương hiệu hiện tại.",
+      icon: Package,
+      roles: ["super_admin", "brand_admin", "brand_editor"],
+    },
+    {
+      href: notificationsHref,
+      label: "Thông báo",
+      description: "Quản lý thông báo theo thương hiệu hiện tại.",
+      icon: Bell,
+      roles: ["super_admin", "brand_admin", "brand_editor"],
+    },
+    {
+      href: assetsHref,
+      label: "Thư viện media",
+      description: "Quản lý ảnh/logo trong storage theo thương hiệu.",
+      icon: FolderOpen,
+      roles: ["super_admin", "brand_admin", "brand_editor"],
+    }
+  )
 
   return (
     <aside
