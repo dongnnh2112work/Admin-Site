@@ -12,6 +12,7 @@ import type { BrandUserRole } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { AddBrandDialog } from "@/components/brands/AddBrandDialog"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -126,6 +127,7 @@ export function BrandList({
           { label: "Tổng quan", href: ROUTES.dashboard },
           { label: "Thương hiệu" },
         ]}
+        actions={superAdmin ? <AddBrandDialog /> : undefined}
       />
 
       {banner ? (
