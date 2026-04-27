@@ -3,9 +3,9 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 import { ROUTES } from "@/constants/routes"
-import { STORAGE_BUCKET } from "@/lib/storage"
 import { createClient } from "@/lib/supabase/client"
 import type {
   AppUser,
@@ -143,9 +143,16 @@ function BrandDetailForm({
   )
 
   // —— Tab 2 ——
+  const logoInputRef = React.useRef<HTMLInputElement | null>(null)
   const [logoUrl, setLogoUrl] = React.useState(brand.logo_url ?? "")
-  const [faviconUrl, setFaviconUrl] = React.useState(brand.favicon_url ?? "")
-  const [uploading, setUploading] = React.useState<string | null>(null)
+  const [lookPrimaryColor, setLookPrimaryColor] = React.useState(
+    brand.primary_color || "#000000"
+  )
+  const [lookSecondaryColor, setLookSecondaryColor] = React.useState(
+    brand.secondary_color ?? ""
+  )
+  const [uploadingLogo, setUploadingLogo] = React.useState(false)
+  const [uploadProgress, setUploadProgress] = React.useState(0)
 
   // —— Tab 3 ——
   const [headerTitle, setHeaderTitle] = React.useState(
@@ -229,50 +236,84 @@ function BrandDetailForm({
     }
   }
 
-  async function saveTab2() {
+  function isHexColor(value: string): boolean {
+    return /^#[0-9a-fA-F]{6}$/.test(value.trim())
+  }
+
+  async function updatePrimaryColor(value: string) {
     if (readOnly) return
-    setSaving("tab2")
-    setBanner(null)
     try {
       const supabase = createClient()
       const { error } = await supabase
         .from("brands")
-        .update({
-          logo_url: logoUrl || null,
-          favicon_url: faviconUrl || null,
-        })
+        .update({ primary_color: value })
         .eq("id", brand.id)
       if (error) {
-        setBanner(error.message)
+        toast.error("Không thể lưu màu chính")
         return
       }
-      router.refresh()
-    } finally {
-      setSaving(null)
+      setPrimaryColor(value)
+      toast.success("Đã lưu màu")
+    } catch {
+      toast.error("Không thể lưu màu chính")
     }
   }
 
-  async function uploadAsset(file: File, kind: "logo" | "icon") {
+  async function updateSecondaryColor(value: string | null) {
     if (readOnly) return
-    const folder = kind === "logo" ? "logo" : "icon"
-    setUploading(kind)
-    setBanner(null)
     try {
       const supabase = createClient()
-      const safeSlug = slug.replace(/[^a-z0-9-]/gi, "-").toLowerCase() || "brand"
-      const path = `brands/${safeSlug}/${folder}/${Date.now()}-${file.name}`
-      const { error: upErr } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(path, file, { upsert: true })
-      if (upErr) {
-        setBanner(upErr.message)
+      const { error } = await supabase
+        .from("brands")
+        .update({ secondary_color: value })
+        .eq("id", brand.id)
+      if (error) {
+        toast.error("Không thể lưu màu phụ")
         return
       }
-      const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
-      if (kind === "logo") setLogoUrl(data.publicUrl)
-      else setFaviconUrl(data.publicUrl)
+      setSecondaryColor(value ?? "")
+      toast.success("Đã lưu màu")
+    } catch {
+      toast.error("Không thể lưu màu phụ")
+    }
+  }
+
+  async function uploadLogo(file: File) {
+    if (readOnly) return
+    setBanner(null)
+    setUploadingLogo(true)
+    setUploadProgress(8)
+    const timer = window.setInterval(() => {
+      setUploadProgress((prev) => (prev >= 90 ? prev : prev + 8))
+    }, 180)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const res = await fetch(`/api/brands/${brand.id}/logo`, {
+        method: "POST",
+        body: formData,
+      })
+
+      const body = (await res.json().catch(() => null)) as
+        | { logo_url?: string; error?: string }
+        | null
+
+      if (!res.ok || !body?.logo_url) {
+        toast.error(body?.error ?? "Không thể tải logo lên")
+        return
+      }
+
+      setLogoUrl(body.logo_url)
+      setUploadProgress(100)
+      toast.success("Đã lưu logo")
+      router.refresh()
+    } catch {
+      toast.error("Tải logo thất bại")
     } finally {
-      setUploading(null)
+      window.clearInterval(timer)
+      setUploadingLogo(false)
+      window.setTimeout(() => setUploadProgress(0), 500)
     }
   }
 
@@ -534,79 +575,127 @@ function BrandDetailForm({
         </TabsContent>
 
         <TabsContent value="look" className="mt-4 space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="logoUrl">URL logo</Label>
-              <Input
-                id="logoUrl"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                disabled={disabled}
-                className="border-zinc-700 bg-zinc-950"
-              />
-              <input
-                type="file"
-                accept="image/*"
-                className="text-sm text-zinc-400 file:mr-2 file:rounded-md file:border file:border-zinc-600 file:bg-zinc-800 file:px-2 file:py-1 file:text-zinc-200"
-                disabled={disabled || uploading !== null}
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) void uploadAsset(f, "logo")
-                  e.target.value = ""
-                }}
-              />
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-3">
+              <Label>Logo</Label>
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={logoUrl}
-                  alt=""
-                  className="mt-2 max-h-24 rounded border border-zinc-700 object-contain"
+                  alt="Logo thương hiệu"
+                  className="size-20 rounded border border-zinc-700 object-contain"
                 />
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="favUrl">URL favicon</Label>
-              <Input
-                id="favUrl"
-                value={faviconUrl}
-                onChange={(e) => setFaviconUrl(e.target.value)}
-                disabled={disabled}
-                className="border-zinc-700 bg-zinc-950"
-              />
+              ) : (
+                <div className="flex size-20 items-center justify-center rounded border border-dashed border-zinc-700 text-xs text-zinc-400">
+                  Chưa có logo
+                </div>
+              )}
               <input
+                ref={logoInputRef}
                 type="file"
                 accept="image/*"
-                className="text-sm text-zinc-400 file:mr-2 file:rounded-md file:border file:border-zinc-600 file:bg-zinc-800 file:px-2 file:py-1 file:text-zinc-200"
-                disabled={disabled || uploading !== null}
+                className="hidden"
+                disabled={disabled || uploadingLogo}
                 onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) void uploadAsset(f, "icon")
+                  const file = e.target.files?.[0]
+                  if (file) void uploadLogo(file)
                   e.target.value = ""
                 }}
               />
-              {faviconUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={faviconUrl}
-                  alt=""
-                  className="mt-2 size-16 rounded border border-zinc-700 object-contain"
-                />
+              <Button
+                type="button"
+                variant="outline"
+                className="border-zinc-700"
+                disabled={disabled || uploadingLogo}
+                onClick={() => logoInputRef.current?.click()}
+              >
+                Thay logo
+              </Button>
+              {uploadingLogo ? (
+                <div className="space-y-2">
+                  <div className="h-2 w-full overflow-hidden rounded bg-zinc-800">
+                    <div
+                      className="h-full bg-[#E8FF47] transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-zinc-400">Đang tải logo lên...</p>
+                </div>
               ) : null}
             </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="lookPrimaryHex">Màu chính</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="lookPrimaryPicker"
+                    type="color"
+                    value={isHexColor(lookPrimaryColor) ? lookPrimaryColor : "#000000"}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase()
+                      setLookPrimaryColor(value)
+                      void updatePrimaryColor(value)
+                    }}
+                    className="h-10 w-10 cursor-pointer border-zinc-700 bg-zinc-950 p-1"
+                  />
+                  <Input
+                    id="lookPrimaryHex"
+                    value={lookPrimaryColor}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase()
+                      setLookPrimaryColor(value)
+                      if (isHexColor(value)) {
+                        void updatePrimaryColor(value)
+                      }
+                    }}
+                    placeholder="#E63946"
+                    className="border-zinc-700 bg-zinc-950 font-mono"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lookSecondaryHex">Màu phụ</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="lookSecondaryPicker"
+                    type="color"
+                    value={
+                      isHexColor(lookSecondaryColor)
+                        ? lookSecondaryColor
+                        : "#000000"
+                    }
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase()
+                      setLookSecondaryColor(value)
+                      void updateSecondaryColor(value)
+                    }}
+                    className="h-10 w-10 cursor-pointer border-zinc-700 bg-zinc-950 p-1"
+                  />
+                  <Input
+                    id="lookSecondaryHex"
+                    value={lookSecondaryColor}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase()
+                      setLookSecondaryColor(value)
+                      if (value === "") {
+                        void updateSecondaryColor(null)
+                        return
+                      }
+                      if (isHexColor(value)) {
+                        void updateSecondaryColor(value)
+                      }
+                    }}
+                    placeholder="#111111 (để trống nếu không dùng)"
+                    className="border-zinc-700 bg-zinc-950 font-mono"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          {uploading ? (
-            <p className="text-sm text-zinc-400">Đang tải lên {uploading}…</p>
-          ) : null}
-          {!disabled ? (
-            <Button
-              type="button"
-              className="bg-[#E8FF47] text-zinc-950 hover:bg-[#E8FF47]/90"
-              disabled={saving === "tab2"}
-              onClick={() => void saveTab2()}
-            >
-              {saving === "tab2" ? "Đang lưu…" : "Lưu tab này"}
-            </Button>
-          ) : null}
         </TabsContent>
 
         <TabsContent value="chrome" className="mt-4 space-y-8">
