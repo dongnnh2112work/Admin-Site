@@ -33,6 +33,16 @@ Người dùng admin site bao gồm:
 
 ---
 
+## Context tiến độ hiện tại (Apr 27, 2026)
+
+- Đã hoàn thành toàn bộ luồng chính từ Phase 0 đến Phase 9 (Auth, App Shell, Dashboard, Brands, Products, Media, Notifications, Users, Audit Log, Settings).
+- Các route admin chính đã có đầy đủ: `/dashboard`, `/brands`, `/brands/[id]`, `/brands/[id]/products`, `/brands/[id]/assets`, `/brands/[id]/notifications`, `/users`, `/audit-log`, `/settings`.
+- Build checklist kỹ thuật đã pass: `npx tsc --noEmit` và `npm run build` đều thành công ở lần cập nhật gần nhất.
+- Phần còn lại chủ yếu là QA thủ công end-to-end: login/redirect, phân quyền theo role, responsive mobile, upload media thật với Supabase, và rà soát không hiển thị raw JSON cho user.
+- Trạng thái tổng thể: dự án đang ở mức "feature-complete", ưu tiên hiện tại là test thực tế và hardening trước khi release.
+
+---
+
 ## Cấu trúc database (Supabase)
 
 ### Bảng chính
